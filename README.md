@@ -4,7 +4,7 @@ This repository provides tools for compiling and deploying Solidity contracts to
 
 ## ⚠️ Solidity Version Note
 
-Use Solidity `` or higher. Monad is compatible with standard EVM 0.8.x series. For best results, keep your contracts simple and tested.
+Use Solidity `0.8.28` only. Monad is compatible with standard EVM 0.8.x series. For best results, keep your contracts simple and tested.
 
 ## 🛠 Getting Started
 
@@ -16,18 +16,20 @@ exports.PRIVATE_KEY = 'your_private_key_here';
 ```
 
 2. Write your contract using the correct pragma:
-   ```solidity
-   // SPDX-License-Identifier: MIT
-pragma solidity 0.8.0;
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 contract YourContract {
   // ...
 }
-   ```
+```
 
 ## 🔧 Solution to JSON Parsing Errors
 
 If you see errors like:
+
 ```
 MCP monad-mcp: Unexpected token 'L', "Looking fo"... is not valid JSON
 MCP monad-mcp: Unexpected token 'D', "Deploying "... is not valid JSON
@@ -47,6 +49,7 @@ npm run start-simple-mcp
 This plugin ignores your contract and always returns a successful deployment response.
 
 **🧠 Claude MCP Integration**
+
 ```json
 {
   "mcpServers": {
@@ -59,8 +62,12 @@ This plugin ignores your contract and always returns a successful deployment res
   }
 }
 ```
+
 To start the MCP server manually:
+
+```bash
 cd monad-mcp && node multi-tool-plugin-v2.cjs
+```
 
 ### 2. Strict MCP Plugin (Auto-Fixes Solidity Version)
 
@@ -73,6 +80,7 @@ npm run start-strict-mcp
 This plugin automatically fixes ANY Solidity version to 0.8.28 and redirects all non-JSON output to stderr.
 
 Configure Claude Desktop with:
+
 ```json
 {
   "mcpServers": {
@@ -118,7 +126,7 @@ To deploy a custom contract:
 1. Create your contract file with `pragma solidity 0.8.28`
 2. Use the deployment utility in your script:
 
-```javascript
+```js
 const { compileAndDeploy } = require('./src/utils/contract-deployer');
 const fs = require('fs');
 const { PRIVATE_KEY } = require('./env.js');
@@ -129,13 +137,10 @@ async function deploy() {
   const result = await compileAndDeploy(
     contractSource,
     PRIVATE_KEY,
-    [/* constructor arguments */],
-    {
-      solcVersion: '0.8.28',  // Always specify this version
-      saveArtifacts: true
-    }
+    [], // constructor args
+    { solcVersion: '0.8.28', saveArtifacts: true }
   );
-  
+
   console.log(`Contract deployed at: ${result.address}`);
 }
 
@@ -151,6 +156,7 @@ MCP monad-mcp: Unexpected token 'S', "Starting c"... is not valid JSON
 ```
 
 Try these solutions in order:
+
 1. Use the ultra-simple MCP plugin: `npm run start-simple-mcp` (always succeeds with mock data)
 2. Use the strict MCP plugin: `npm run start-strict-mcp` (fixes version issues automatically)
 3. Check your contract's pragma version: `npm run check-solidity examples/YourContract.sol`
@@ -159,6 +165,7 @@ Try these solutions in order:
 6. Deploy directly without Claude: `npm run simple-deploy`
 
 Always check your contract's pragma version first:
+
 ```solidity
 pragma solidity 0.8.28;  // Must be exact version, not ^0.8.0 or similar
 ```
@@ -169,6 +176,7 @@ A template contract is available at `monad-mcp/solidity-template.sol` that you c
 
 ## Security Note
 
-Always keep your `env.js` file secure and never commit it to version control. The private key is never hardcoded, printed, or exposed in logs or code.
+- Always keep your `env.js` file secure and never commit it to version control.
+- The private key is never hardcoded, printed, or exposed in logs or code.
 
 # MonDeployer
