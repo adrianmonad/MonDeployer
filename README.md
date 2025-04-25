@@ -11,7 +11,7 @@ When deploying contracts to Monad, **you must use Solidity version 0.8.28** exac
 1. Create an `env.js` file in the root directory with your private key:
    ```javascript
    // env.js
-   exports.PRIVATE_KEY = "your_private_key_here"; // without 0x prefix
+   exports.PRIVATE_KEY = "your_private_key_here"; //
    ```
 
 2. Use the SimpleStorage example as a template for your contracts:
