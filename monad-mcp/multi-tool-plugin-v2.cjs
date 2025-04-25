@@ -240,7 +240,7 @@ async function deployContract(source, constructorArgs = []) {
       transactionHash: transactionHash,
       abi: abi,
       contractName: contractName,
-      explorerUrl: `https://explorer.testnet.monad.xyz/tx/${transactionHash}`
+      explorerUrl: `https://testnet.monadexplorer.com/tx/${transactionHash}`
     };
   } catch (error) {
     log(`[DEPLOY] ❌ Deployment error: ${error.message}`);
