@@ -1,4 +1,4 @@
-# DropFlow - Monad Contract Deployment Tool
+# MonDeployer - Monad Contract Deployment Tool
 
 This repository provides tools for compiling and deploying Solidity contracts to the Monad testnet.
 
