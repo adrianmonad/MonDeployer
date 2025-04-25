@@ -1,0 +1,19 @@
+{
+  "name": "monad-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Monad contract deployment",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test-deploy": "node test-deploy.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "solc": "^0.8.19",
+    "typescript": "^5.0.0",
+    "viem": "^2.28.0",
+    "zod": "^3.22.4"
+  }
+} 

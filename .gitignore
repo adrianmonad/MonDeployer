@@ -1,0 +1,22 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Build artifacts
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Temporary files
+.DS_Store
+.vscode/
+.idea/
+*.log
+tmp/
+
+echo "env.js" >> .gitignore
+env.js

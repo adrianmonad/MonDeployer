@@ -1,0 +1,57 @@
+{
+  "name": "monad-mcp-tutorial",
+  "version": "1.0.0",
+  "main": "index.js",
+  "bin": {
+    "monad-mcp-tutorial": "./bin/monad-mcp-tutorial.js"
+  },
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "setup": "node setup-env.js",
+    "deploy-example": "node examples/deploy-test.js",
+    "deploy-voting": "node examples/deploy-voting.js",
+    "deploy-enhanced-voting": "node examples/deploy-enhanced-voting.js",
+    "deploy-my-contract": "node examples/deploy-my-contract.js",
+    "deploy-my-contract-custom": "node examples/deploy-my-contract-custom.js",
+    "interact-my-contract": "node examples/interact-my-contract.js",
+    "contract-cli": "node examples/contract-cli.js",
+    "deploy": "node deploy-contract.js",
+    "simple-deploy": "node deploy-simple-contract.js",
+    "interact": "node interact-contract.js",
+    "deploy-advanced-voting": "node deploy-voting.js",
+    "interact-voting": "node interact-voting.js",
+    "run-voting-demo": "node examples/run-voting-demo.js",
+    "check-solidity": "node scripts/check-solidity-version.js",
+    "fix-solidity": "node examples/check-contract-version.js",
+    "deploy-token": "node examples/deploy-simple-token.js",
+    "deploy-token-clean": "node examples/deploy-contract-clean.js",
+    "deploy-storage": "node examples/deploy-simple-storage.js",
+    "start-mcp": "node monad-mcp/mcp-plugin.js",
+    "start-strict-mcp": "node monad-mcp/strict-mcp-plugin.js",
+    "start-simple-mcp": "node monad-mcp/simple-mcp-plugin.js",
+    "start-real-mcp": "node monad-mcp/simple-mcp-plugin.cjs",
+    "force-solc": "node monad-mcp/force-solc-plugin.cjs",
+    "debug-mcp": "node monad-mcp/fixed-solc-plugin.cjs",
+    "check-and-deploy": "node scripts/check-solidity-version.js && node examples/deploy-contract-template.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@openzeppelin/contracts": "^5.3.0",
+    "axios": "^1.8.2",
+    "dotenv": "^16.5.0",
+    "ethers": "^6.13.5",
+    "solc": "0.8.28",
+    "typescript": "^5.8.2",
+    "viem": "^2.28.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10"
+  }
+}

@@ -1,0 +1,365 @@
+#!/usr/bin/env node
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
+
+// Schema for deploy-contract tool
+const DeployContractArgsSchema = z.object({
+    sourceCode: z.string().describe("The Solidity source code to compile and deploy"),
+    constructorArgs: z.array(z.any()).optional().describe("Arguments for the contract constructor"),
+    contractName: z.string().optional().describe("Name of the contract (if not provided, will be extracted from the source)"),
+    saveArtifacts: z.boolean().optional().default(true).describe("Whether to save contract artifacts for later use"),
+});
+
+// Directory operations
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '../..');
+
+// Helper function to write a file to a temporary directory
+async function writeSourceToTempFile(sourceCode: string, fileName: string): Promise<string> {
+    const tempDir = path.join(os.tmpdir(), 'monad-deploy');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const filePath = path.join(tempDir, fileName);
+    fs.writeFileSync(filePath, sourceCode);
+    return filePath;
+}
+
+// Main contract deployment function
+async function deployContract(args: {
+    sourceCode: string,
+    constructorArgs?: any[],
+    contractName?: string,
+    saveArtifacts?: boolean
+}): Promise<object> {
+    try {
+        // Extract the contract name if not provided
+        let contractName = args.contractName;
+        if (!contractName) {
+            const match = args.sourceCode.match(/contract\s+([a-zA-Z0-9_]+)/);
+            if (!match || !match[1]) {
+                throw new Error("Could not extract contract name from source code");
+            }
+            contractName = match[1];
+        }
+        
+        // Create a temporary deployment script in the main project directory
+        // This ensures it has access to all dependencies
+        const deployScriptPath = path.join(ROOT_DIR, 'temp-deploy-script.js');
+        
+        // Escape backticks in source code for template literal
+        const escapedSource = args.sourceCode.replace(/`/g, '\\`');
+        
+        const deployScript = `
+// Temporary deployment script - will be deleted after use
+const fs = require('fs');
+const path = require('path');
+const solc = require('solc');
+const { createPublicClient, createWalletClient, http } = require('viem');
+const { privateKeyToAccount } = require('viem/accounts');
+const os = require('os');
+
+// Get private key from env.js - absolute path to ensure it works regardless of working directory
+const envJsPath = path.resolve('${ROOT_DIR}', 'env.js');
+console.log('Looking for env.js at:', envJsPath);
+
+// Load the PRIVATE_KEY from env.js
+const { PRIVATE_KEY } = require(envJsPath);
+
+// Contract details
+const CONTRACT_SOURCE = \`${escapedSource}\`;
+const CONTRACT_NAME = '${contractName}';
+const CONSTRUCTOR_ARGS = ${JSON.stringify(args.constructorArgs || [])};
+const SAVE_ARTIFACTS = ${args.saveArtifacts !== false};
+
+// Monad testnet configuration
+const MONAD_RPC_URL = 'https://testnet-rpc.monad.xyz';
+const MONAD_CHAIN_ID = 10143;
+
+async function compileSolidity(source, contractName) {
+    console.log('Compiling contract...');
+    
+    // Create compiler input
+    const input = {
+        language: 'Solidity',
+        sources: {
+            [\`\${contractName}.sol\`]: { content: source }
+        },
+        settings: {
+            outputSelection: {
+                '*': { '*': ['abi', 'evm.bytecode.object'] }
+            },
+            optimizer: { enabled: true, runs: 200 }
+        }
+    };
+
+    try {
+        // Use the local solc directly instead of loading a remote version
+        const output = JSON.parse(solc.compile(JSON.stringify(input)));
+        
+        // Check for errors
+        if (output.errors) {
+            const errors = output.errors.filter(error => error.severity === 'error');
+            if (errors.length > 0) {
+                const errorMessage = errors.map(e => e.formattedMessage).join('\\n');
+                throw new Error(\`Compilation errors:\\n\${errorMessage}\`);
+            }
+        }
+        
+        // Get the compiled contract
+        const compiledContract = output.contracts[\`\${contractName}.sol\`][contractName];
+        if (!compiledContract) {
+            throw new Error(\`Contract \${contractName} not found in compiled output\`);
+        }
+        
+        return {
+            abi: compiledContract.abi,
+            bytecode: \`0x\${compiledContract.evm.bytecode.object}\`
+        };
+    } catch (compileError) {
+        throw new Error(\`Compilation error: \${compileError.message}\`);
+    }
+}
+
+async function deployContract() {
+    try {
+        // Validate private key
+        if (!PRIVATE_KEY) {
+            throw new Error('PRIVATE_KEY not found in env.js');
+        }
+        
+        console.log(\`Deploying \${CONTRACT_NAME} to Monad testnet...\`);
+        
+        // First compile the contract
+        const { abi, bytecode } = await compileSolidity(CONTRACT_SOURCE, CONTRACT_NAME);
+        
+        // Create an account from the private key
+        const privateKey = PRIVATE_KEY.startsWith('0x') ? PRIVATE_KEY : \`0x\${PRIVATE_KEY}\`;
+        const account = privateKeyToAccount(privateKey);
+        
+        console.log(\`Deploying from address: \${account.address}\`);
+        
+        // Define the Monad testnet chain
+        const monadTestnet = {
+            id: MONAD_CHAIN_ID,
+            name: 'Monad Testnet',
+            network: 'monad-testnet',
+            nativeCurrency: {
+                name: 'MON',
+                symbol: 'MON',
+                decimals: 18
+            },
+            rpcUrls: {
+                default: {
+                    http: [MONAD_RPC_URL],
+                },
+                public: {
+                    http: [MONAD_RPC_URL],
+                }
+            }
+        };
+        
+        // Create clients
+        const publicClient = createPublicClient({
+            chain: monadTestnet,
+            transport: http(MONAD_RPC_URL)
+        });
+        
+        const walletClient = createWalletClient({
+            account,
+            chain: monadTestnet,
+            transport: http(MONAD_RPC_URL)
+        });
+        
+        // Deploy the contract
+        console.log('Sending transaction...');
+        const hash = await walletClient.deployContract({
+            abi,
+            bytecode,
+            args: CONSTRUCTOR_ARGS,
+        });
+        
+        console.log(\`Transaction hash: \${hash}\`);
+        
+        // Wait for transaction receipt
+        console.log('Waiting for transaction confirmation...');
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        
+        if (!receipt.contractAddress) {
+            throw new Error('Contract deployment failed - no contract address in receipt');
+        }
+        
+        console.log('✅ Contract deployed successfully!');
+        console.log(\`📝 Contract Address: \${receipt.contractAddress}\`);
+        console.log(\`🔗 Transaction Hash: \${hash}\`);
+        console.log(\`🌐 Explorer URL: https://explorer.testnet.monad.xyz/tx/\${hash}\`);
+        
+        // Save artifacts if requested
+        let artifactPath;
+        if (SAVE_ARTIFACTS) {
+            const tempDir = os.tmpdir();
+            const artifactsDir = path.join(tempDir, 'monad-deployments');
+            
+            if (!fs.existsSync(artifactsDir)) {
+                fs.mkdirSync(artifactsDir, { recursive: true });
+            }
+            
+            artifactPath = path.join(artifactsDir, \`\${CONTRACT_NAME}.json\`);
+            
+            // Save ABI and address to file
+            fs.writeFileSync(artifactPath, JSON.stringify({
+                contractName: CONTRACT_NAME,
+                address: receipt.contractAddress,
+                abi,
+                transactionHash: hash,
+                network: 'monad-testnet',
+                chainId: MONAD_CHAIN_ID,
+                explorerUrl: \`https://explorer.testnet.monad.xyz/tx/\${hash}\`
+            }, null, 2));
+            
+            console.log(\`💾 Contract artifacts saved to: \${artifactPath}\`);
+        }
+        
+        // Return deployment information
+        const result = {
+            success: true,
+            address: receipt.contractAddress,
+            transactionHash: hash,
+            chainId: MONAD_CHAIN_ID,
+            contractName: CONTRACT_NAME,
+            explorerUrl: \`https://explorer.testnet.monad.xyz/tx/\${hash}\`
+        };
+        
+        if (SAVE_ARTIFACTS) {
+            result.artifactPath = artifactPath;
+        }
+        
+        // Output the result as JSON for the parent process to parse
+        console.log(JSON.stringify(result));
+        
+        // Clean up after ourselves
+        setTimeout(() => {
+            try {
+                fs.unlinkSync(__filename);
+                console.log('Cleaned up temporary deployment script');
+            } catch (err) {
+                // Ignore errors in cleanup
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Deployment failed:', error.message);
+        console.log(JSON.stringify({ 
+            success: false, 
+            error: error.message 
+        }));
+    }
+}
+
+// Run the deployment
+deployContract();
+`;
+        
+        fs.writeFileSync(deployScriptPath, deployScript);
+        
+        // Execute the deployment script
+        console.log(`Executing deployment script: ${deployScriptPath}`);
+        const { stdout, stderr } = await execPromise(`node ${deployScriptPath}`);
+        
+        console.log('Deployment script output:');
+        console.log(stdout);
+        
+        if (stderr) {
+            console.error('Deploy stderr:', stderr);
+        }
+        
+        // Parse the deployment result
+        let deployResult;
+        try {
+            // Find the JSON output in stdout (last JSON object)
+            const jsonMatches = [...stdout.matchAll(/\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/g)];
+            
+            if (jsonMatches.length > 0) {
+                const lastJsonMatch = jsonMatches[jsonMatches.length - 1][0];
+                deployResult = JSON.parse(lastJsonMatch);
+            } else {
+                throw new Error('Could not parse deployment result');
+            }
+        } catch (e) {
+            console.error('Error parsing deployment result:', e);
+            console.log('Full output:', stdout);
+            throw new Error('Failed to parse deployment result');
+        }
+        
+        return deployResult.success === false 
+            ? deployResult 
+            : {
+                success: true,
+                address: deployResult.address,
+                transactionHash: deployResult.transactionHash,
+                contractName: deployResult.contractName,
+                artifactPath: deployResult.artifactPath,
+                explorerUrl: deployResult.explorerUrl
+            };
+    } catch (error) {
+        console.error("Deploy contract error:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+// Create MCP server
+const server = new McpServer({
+    name: "monad-mcp",
+    version: "1.0.0",
+});
+
+// Register the deploy-contract tool
+server.tool(
+    "deploy-contract",
+    "Compile and deploy a Solidity contract to the Monad testnet using the project's private key",
+    {
+        sourceCode: z.string().describe("The Solidity source code to compile and deploy"),
+        constructorArgs: z.array(z.any()).optional().describe("Arguments for the contract constructor"),
+        contractName: z.string().optional().describe("Name of the contract (if not provided, will be extracted from the source)"),
+        saveArtifacts: z.boolean().optional().default(true).describe("Whether to save contract artifacts for later use"),
+    },
+    async (input) => {
+        const result = await deployContract(input);
+        return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+        };
+    }
+);
+
+// Start server async function
+async function runServer() {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.log("Monad MCP server running...");
+}
+
+// Export the tools for direct access by Claude
+export const tools = {
+  'deploy-contract': deployContract
+};
+
+// Run the server
+runServer().catch((error) => {
+    console.error("Fatal error running server:", error);
+    process.exit(1);
+}); 
