@@ -8,11 +8,12 @@ Use Solidity `` or higher. Monad is compatible with standard EVM 0.8.x series. F
 
 ## 🛠 Getting Started
 
-1. Create an `env.js` file in the root directory with your private key:
-   ```javascript
-  // env.js
-   exports.PRIVATE_KEY = 'your_private_key_here';
-   ```
+1. Create a file named `env.js` in the root directory and add your private key like this:
+
+```js
+// env.js
+exports.PRIVATE_KEY = 'your_private_key_here';
+```
 
 2. Write your contract using the correct pragma:
    ```solidity
