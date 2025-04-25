@@ -2,26 +2,26 @@
 
 This repository provides tools for compiling and deploying Solidity contracts to the Monad testnet.
 
-## ⚠️ IMPORTANT REQUIREMENT ⚠️
+## ⚠️ Solidity Version Note
 
-When deploying contracts to Monad, **you must use Solidity version 0.8.28** exactly. This is a requirement for compatibility with the Monad EVM. Using any other version will result in errors.
+Use Solidity `` or higher. Monad is compatible with standard EVM 0.8.x series. For best results, keep your contracts simple and tested.
 
-## Getting Started
+## 🛠 Getting Started
 
 1. Create an `env.js` file in the root directory with your private key:
    ```javascript
-   // env.js
-   exports.PRIVATE_KEY = "your_private_key_here"; //
+  // env.js
+   exports.PRIVATE_KEY = 'your_private_key_here';
    ```
 
-2. Use the SimpleStorage example as a template for your contracts:
+2. Write your contract using the correct pragma:
    ```solidity
    // SPDX-License-Identifier: MIT
-   pragma solidity 0.8.28;  // Always use this exact version
-   
-   contract YourContract {
-       // Your contract code
-   }
+pragma solidity 0.8.0;
+
+contract YourContract {
+  // ...
+}
    ```
 
 ## 🔧 Solution to JSON Parsing Errors
@@ -45,19 +45,21 @@ npm run start-simple-mcp
 
 This plugin ignores your contract and always returns a successful deployment response.
 
-Configure Claude Desktop to use it:
+**🧠 Claude MCP Integration**
 ```json
 {
   "mcpServers": {
     "monad-mcp": {
       "command": "node",
       "args": [
-        "/path/to/DropFlow/monad-mcp/simple-mcp-plugin.js"
+        "/path/to/yourfiles/monad-mcp/multi-tool-plugin-v2.cjs"
       ]
     }
   }
 }
 ```
+To start the MCP server manually:
+cd monad-mcp && node multi-tool-plugin-v2.cjs
 
 ### 2. Strict MCP Plugin (Auto-Fixes Solidity Version)
 
