@@ -4,7 +4,7 @@ This repository provides tools for compiling and deploying Solidity contracts to
 
 ## ⚠️ Solidity Version Note
 
-Use Solidity `0.8.28` only. Monad is compatible with standard EVM 0.8.x series. For best results, keep your contracts simple and tested.
+Use Solidity `0.8.x` & up only. Monad is compatible with standard EVM 0.8.x series. For best results, keep your contracts simple and tested.
 
 ## 🛠 Getting Started
 
