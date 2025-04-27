@@ -167,7 +167,7 @@ Try these solutions in order:
 Always check your contract's pragma version first:
 
 ```solidity
-pragma solidity 0.8.28;  // Must be exact version, not ^0.8.0 or similar
+pragma solidity 0.8.x;  // Must be exact version ^0.8.0 or similar
 ```
 
 ## Template Contract
